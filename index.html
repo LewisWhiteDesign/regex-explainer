@@ -1,0 +1,1047 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Paste a regular expression to see what every piece does, test it on real text, or find a ready-made pattern.">
+<title>Regex Explainer</title>
+<script>try { const t = localStorage.getItem('regex-explainer:theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky top bar; library rail on the left, pattern bench and two-panel readout (breakdown | tester) on the right. */
+:root {
+  --bg: #f5f6fa;
+  --panel: #ffffff;
+  --sunk: #f2f4f8;
+  --ink: #12152a;
+  --muted: #5f667c;
+  --line: #e4e7ef;
+  --line-strong: #cdd2df;
+  --accent: #4f46e5;
+  --accent-ink: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --danger: #c0262d;
+  --ok: #0f8a5f;
+  --mark-a: #ffe38f;
+  --mark-b: #bff0d2;
+  --shadow-sm: 0 1px 2px rgba(18, 21, 42, .05);
+  --shadow: 0 1px 2px rgba(18, 21, 42, .04), 0 6px 24px -8px rgba(18, 21, 42, .10);
+  --topbar: rgba(245, 246, 250, .78);
+  /* token families, matching the colours in the pattern */
+  --k-literal: #2b3042;
+  --k-escape: #0b766b;
+  --k-class: #a85300;
+  --k-group: #3b49d1;
+  --k-quant: #8337bf;
+  --k-anchor: #bf1d57;
+  --k-alt: #4b7a0e;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 16px;
+  --r-sm: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0e16; --panel: #141724; --sunk: #10131e; --ink: #e8eaf4; --muted: #9aa1b8; --line: #242939; --line-strong: #343a4f;
+    --accent: #8b8dff; --accent-ink: #0d0f1c; --danger: #ff7b86; --ok: #4fd3a0; --mark-a: #6b5512; --mark-b: #1d5a37;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3); --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 28px -10px rgba(0, 0, 0, .55);
+    --topbar: rgba(12, 14, 22, .75);
+    --k-literal: #d9dceb; --k-escape: #44d3c1; --k-class: #f2a944; --k-group: #8b9dff; --k-quant: #c792ff; --k-anchor: #ff74a3; --k-alt: #a6d862;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0e16; --panel: #141724; --sunk: #10131e; --ink: #e8eaf4; --muted: #9aa1b8; --line: #242939; --line-strong: #343a4f;
+  --accent: #8b8dff; --accent-ink: #0d0f1c; --danger: #ff7b86; --ok: #4fd3a0; --mark-a: #6b5512; --mark-b: #1d5a37;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3); --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 28px -10px rgba(0, 0, 0, .55);
+  --topbar: rgba(12, 14, 22, .75);
+  --k-literal: #d9dceb; --k-escape: #44d3c1; --k-class: #f2a944; --k-group: #8b9dff; --k-quant: #c792ff; --k-anchor: #ff74a3; --k-alt: #a6d862;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { color-scheme: light; scroll-padding-top: 84px; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+svg { flex: none; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(1200px 400px at 85% -120px, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1360px; margin: 0 auto; }
+
+/* ---------- Top bar ---------- */
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--topbar); backdrop-filter: saturate(160%) blur(12px); -webkit-backdrop-filter: saturate(160%) blur(12px); border-bottom: 1px solid var(--line); }
+.topbar .wrap { display: flex; align-items: center; gap: 16px; min-height: 64px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #c026d3)); color: #fff; font-family: var(--f-mono); font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 60%, transparent); }
+h1 { font-family: var(--f-display); font-weight: 750; font-size: 1.25rem; letter-spacing: -0.02em; margin: 0; line-height: 1.1; }
+.tagline { margin: 2px 0 0; color: var(--muted); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+@media (max-width: 640px) { .tagline { display: none; } .kbd-hint { display: none; } }
+
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 1.08rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; display: flex; align-items: center; gap: 8px; }
+h2 .ico { color: var(--accent); }
+.eyebrow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+
+.layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); grid-template-areas: "lib main"; gap: 24px; align-items: start; padding-block: 24px 56px; }
+.main { grid-area: main; display: grid; gap: 24px; min-width: 0; }
+.lib { grid-area: lib; position: sticky; top: 88px; max-height: calc(100vh - 112px); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "main" "lib"; gap: 16px; padding-top: 16px; }
+  .main { gap: 16px; }
+  .lib { position: static; max-height: none; }
+}
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+
+/* ---------- Buttons ---------- */
+button { font: inherit; }
+.btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 9px; padding: 7px 12px; font-size: 0.85rem; font-weight: 500; cursor: pointer; box-shadow: var(--shadow-sm); transition: border-color .15s, color .15s, background-color .15s, transform .1s; white-space: nowrap; }
+.btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--accent); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); color: var(--accent-ink); }
+.btn.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.icon-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; box-shadow: var(--shadow-sm); transition: color .15s, border-color .15s; }
+.icon-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.ghost { border: 0; background: transparent; box-shadow: none; width: 32px; height: 32px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+kbd { font-family: var(--f-mono); font-size: 0.72rem; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; color: var(--muted); background: var(--panel); }
+.theme-dark { display: none; }
+:root[data-theme="dark"] .theme-dark { display: block; } :root[data-theme="dark"] .theme-light { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .theme-dark { display: block; } :root:not([data-theme="light"]) .theme-light { display: none; } }
+
+/* ---------- Pattern bench ---------- */
+.bench { padding: 22px; display: grid; gap: 16px; }
+.bench-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.bench-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.input-row { display: flex; align-items: center; border: 1.5px solid var(--line-strong); border-radius: 12px; background: var(--sunk); font-family: var(--f-mono); font-size: 1.15rem; min-width: 0; padding-right: 6px; transition: border-color .15s, box-shadow .15s, background-color .15s; }
+.input-row:focus-within { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+.delim { display: grid; place-items: center; padding: 0 4px 0 14px; color: var(--muted); font-weight: 600; user-select: none; }
+.delim.end { padding: 0 2px 0 4px; }
+.flag-suffix { color: var(--accent); font-weight: 600; padding-right: 8px; user-select: none; min-width: 1ch; }
+#pattern { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; padding: 14px 4px; outline: none; }
+#pattern::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+.flags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.flags-label { margin-right: 4px; }
+.flag { font-family: var(--f-mono); font-size: 0.82rem; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 5px 12px 5px 6px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; transition: background-color .15s, border-color .15s, color .15s; }
+.flag:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.flag b { font-weight: 600; color: var(--ink); width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; background: var(--sunk); }
+.flag span { font-family: var(--f-body); font-size: 0.8rem; }
+.flag[aria-pressed="true"] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
+.flag[aria-pressed="true"] b { color: var(--accent-ink); background: var(--accent); }
+
+.pview { font-family: var(--f-mono); font-size: clamp(1.15rem, 2.4vw, 1.5rem); line-height: 1.7; word-break: break-all; padding: 16px 18px; background: var(--sunk); border: 1px dashed var(--line-strong); border-radius: 12px; min-height: 3.4em; }
+.pc { border-radius: 4px; transition: background-color .12s, outline-color .12s; }
+.pc.hl { background: color-mix(in srgb, currentColor 22%, transparent); outline: 1px solid color-mix(in srgb, currentColor 45%, transparent); }
+.k-literal { color: var(--k-literal); } .k-escape { color: var(--k-escape); } .k-class { color: var(--k-class); }
+.k-group { color: var(--k-group); } .k-quant { color: var(--k-quant); } .k-anchor { color: var(--k-anchor); } .k-alt { color: var(--k-alt); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.76rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; background: color-mix(in srgb, currentColor 9%, transparent); }
+.legend span::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: currentColor; }
+.legend i { font-style: normal; color: var(--ink); opacity: .8; }
+.summary { margin: 0; font-size: 0.95rem; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
+.summary:empty { display: none; }
+.summary::before { content: "i"; flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: 600 0.75rem/20px var(--f-mono); text-align: center; }
+.err { border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--panel)); color: var(--ink); border-radius: 12px; padding: 12px 16px; }
+.err strong { color: var(--danger); }
+.err pre { font-family: var(--f-mono); margin: 8px 0 0; overflow-x: auto; font-size: 0.92rem; }
+.err .caret { color: var(--danger); font-weight: 600; }
+
+/* ---------- Readout ---------- */
+.readout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 1150px) { .readout { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+.card { padding: 22px; display: grid; gap: 14px; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.hint { font-size: 0.78rem; color: var(--muted); }
+
+ol.tree { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+ol.tree ol.tree { margin: 4px 0 2px 13px; padding-left: 14px; border-left: 2px solid var(--line); }
+.node { display: grid; gap: 2px; }
+.line { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: baseline; padding: 8px 10px; border-radius: 10px; cursor: default; border: 1px solid transparent; transition: background-color .12s, border-color .12s; }
+.line:hover, .line:focus-visible { background: var(--sunk); border-color: var(--line); }
+.tok { font-family: var(--f-mono); font-size: 0.88rem; font-weight: 600; padding: 2px 8px; border-radius: 7px; background: color-mix(in srgb, currentColor 11%, transparent); border: 1px solid color-mix(in srgb, currentColor 18%, transparent); white-space: pre; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: baseline; }
+.what { min-width: 0; }
+.chip { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--muted); margin-right: 8px; }
+.desc { color: var(--ink); }
+.line.q { padding-top: 4px; }
+.line.q .desc { color: var(--muted); }
+.flagnotes { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.flagnotes div { display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 10px; font-size: 0.88rem; align-items: baseline; }
+.flagnotes code { font-family: var(--f-mono); font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 6px; text-align: center; }
+.empty { color: var(--muted); font-size: 0.92rem; margin: 0; }
+
+.field { display: grid; gap: 8px; }
+textarea { width: 100%; font-family: var(--f-mono); font-size: 0.9rem; line-height: 1.6; color: var(--ink); background: var(--sunk); border: 1.5px solid var(--line-strong); border-radius: 12px; padding: 12px 14px; resize: vertical; min-height: 130px; transition: border-color .15s, box-shadow .15s, background-color .15s; }
+textarea:focus { border-color: var(--accent); outline: none; background: var(--panel); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+.result { font-family: var(--f-mono); font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap; word-break: break-word; background: var(--sunk); border-radius: 12px; padding: 12px 14px; max-height: 320px; overflow: auto; border: 1px solid var(--line); }
+mark { color: var(--ink); border-radius: 4px; padding: 2px 1px; box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ink) 18%, transparent); }
+mark.m0 { background: var(--mark-a); } mark.m1 { background: var(--mark-b); }
+.zero { display: inline-block; width: 2px; height: 1.1em; vertical-align: -0.2em; background: var(--k-anchor); margin: 0 1px; }
+.count { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 0.8rem; padding: 4px 11px; border-radius: 999px; background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.count::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+.count.none { background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); }
+.note { font-size: 0.82rem; color: var(--muted); margin: 0; }
+.tablewrap { overflow: auto; max-height: 360px; border: 1px solid var(--line); border-radius: 12px; }
+.tablewrap:empty { display: none; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+th { position: sticky; top: 0; background: var(--sunk); text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+td:first-child { color: var(--muted); width: 1%; }
+td code { font-family: var(--f-mono); white-space: pre-wrap; word-break: break-all; }
+td .g { display: block; color: var(--muted); }
+td .g code { color: var(--ink); }
+.tablewrap .note { padding: 8px 12px; }
+
+/* ---------- Library rail ---------- */
+.lib-head { padding: 18px 16px 12px; display: grid; gap: 12px; border-bottom: 1px solid var(--line); }
+.lib-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.searchbox { position: relative; }
+.searchbox svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.searchbox kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.search { width: 100%; font: inherit; font-size: 0.9rem; color: var(--ink); background: var(--sunk); border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 9px 44px 9px 36px; transition: border-color .15s, box-shadow .15s, background-color .15s; }
+.search:focus { border-color: var(--accent); outline: none; background: var(--panel); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+.search:focus + kbd, .search:not(:placeholder-shown) + kbd { display: none; }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.cat-chip { flex: none; border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 4px 11px; font-size: 0.78rem; font-weight: 500; cursor: pointer; transition: all .15s; }
+.cat-chip:hover { color: var(--ink); border-color: var(--line-strong); }
+.cat-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+.lib-list { overflow-y: auto; padding: 8px; display: grid; gap: 2px; align-content: start; scrollbar-width: thin; }
+.cat { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; padding: 14px 10px 6px; }
+.entry { position: relative; text-align: left; border: 1px solid transparent; background: transparent; color: var(--ink); padding: 10px 12px; border-radius: 10px; cursor: pointer; display: grid; gap: 3px; min-width: 0; transition: background-color .12s, border-color .12s; }
+.entry:hover { background: var(--sunk); border-color: var(--line); }
+.entry.active { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.entry.active::before { content: ""; position: absolute; left: -1px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--accent); }
+.entry .n { font-weight: 600; font-size: 0.9rem; }
+.entry .d { font-size: 0.8rem; color: var(--muted); }
+.entry code { font-family: var(--f-mono); font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; padding: 3px 7px; border-radius: 6px; background: var(--sunk); border: 1px solid var(--line); }
+.entry.active code { background: var(--panel); }
+.lib-foot { padding: 10px 16px 14px; border-top: 1px solid var(--line); font-size: 0.76rem; color: var(--muted); }
+
+/* ---------- Toast ---------- */
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 16px); opacity: 0; pointer-events: none; background: var(--ink); color: var(--panel); padding: 9px 16px; border-radius: 999px; font-size: 0.86rem; font-weight: 500; box-shadow: var(--shadow); transition: opacity .2s, transform .2s; z-index: 50; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 560px) {
+  .bench, .card { padding: 16px; }
+  .flag span { display: none; }
+  .flag { padding: 4px; }
+  .bench-actions .btn .lbl { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<header class="topbar gutter">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">/.*/</div>
+      <div style="min-width:0">
+        <h1>Regex Explainer</h1>
+        <p class="tagline">See what every piece of a pattern does, then test it on real text.</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="hint kbd-hint"><kbd>Ctrl</kbd> <kbd>K</kbd> to search patterns</span>
+      <button class="icon-btn" id="theme" type="button" aria-label="Toggle light or dark theme" title="Toggle theme">
+        <svg class="theme-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="theme-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap gutter">
+  <div class="layout">
+    <main class="main">
+      <section class="panel bench" aria-label="Pattern">
+        <div class="bench-top">
+          <span class="eyebrow">Pattern · JavaScript syntax</span>
+          <div class="bench-actions">
+            <button class="btn" id="tofind" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="lbl">Find a pattern</span></button>
+            <button class="btn primary" id="copy" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="lbl" id="copy-lbl">Copy /…/flags</span></button>
+          </div>
+        </div>
+        <div class="input-row">
+          <span class="delim" aria-hidden="true">/</span>
+          <input id="pattern" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Regular expression" placeholder="Type or paste a pattern, e.g. \d{3}-\d{4}">
+          <span class="delim end" aria-hidden="true">/</span><span class="flag-suffix" id="flagsuffix" aria-hidden="true"></span>
+          <button class="icon-btn ghost" id="clear" type="button" aria-label="Clear pattern" title="Clear pattern"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div class="flags" role="group" aria-label="Flags"><span class="eyebrow flags-label">Flags</span><div class="flags" id="flags"></div></div>
+        <div class="pview" id="pview" aria-label="Colour-coded pattern"></div>
+        <div class="legend">
+          <span class="k-literal"><i>text</i></span><span class="k-escape"><i>escape / shorthand</i></span><span class="k-class"><i>character set</i></span>
+          <span class="k-group"><i>group</i></span><span class="k-quant"><i>repetition</i></span><span class="k-anchor"><i>position</i></span><span class="k-alt"><i>or</i></span>
+        </div>
+        <div id="error" hidden></div>
+        <p class="summary" id="summary"></p>
+      </section>
+
+      <div class="readout">
+        <section class="panel card" aria-labelledby="bd-h">
+          <div class="card-head">
+            <h2 id="bd-h"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M8 12h12M12 18h8"/></svg>Breakdown</h2>
+            <span class="hint">Hover a row to light up its part of the pattern</span>
+          </div>
+          <div id="breakdown"></div>
+          <div class="flagnotes" id="flagnotes"></div>
+        </section>
+
+        <section class="panel card" aria-labelledby="t-h">
+          <div class="card-head">
+            <h2 id="t-h"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 18.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3"/></svg>Test it</h2>
+            <span class="count" id="count">0 matches</span>
+          </div>
+          <div class="field">
+            <label class="eyebrow" for="sample">Text to search</label>
+            <textarea id="sample" spellcheck="false" rows="6"></textarea>
+          </div>
+          <div class="field">
+            <div class="eyebrow">Matches highlighted</div>
+            <div class="result" id="result" aria-live="polite"></div>
+          </div>
+          <p class="note" id="gnote" hidden></p>
+          <div class="tablewrap" id="table"></div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="panel lib" id="library" aria-labelledby="lib-h">
+      <div class="lib-head">
+        <div class="lib-title">
+          <h2 id="lib-h"><svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM20 17v4H6.5"/></svg>Pattern library</h2>
+        </div>
+        <div class="searchbox">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input class="search" id="search" type="search" placeholder="e.g. uk postcode, date…" aria-label="Describe what you want to match" autocomplete="off">
+          <kbd aria-hidden="true">Ctrl K</kbd>
+        </div>
+        <div class="cats" id="cats" role="group" aria-label="Filter by category"></div>
+      </div>
+      <div class="lib-list" id="liblist"></div>
+      <div class="lib-foot" id="libfoot"></div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script id="core">
+/* ===================== Parser ===================== */
+const ESC = {
+  d: ['a digit (0–9)', 'digits 0–9'],
+  D: ['any character that is not a digit', 'non-digits'],
+  w: ['a word character (letter, digit or underscore)', 'word characters (letters, digits, _)'],
+  W: ['any character that is not a word character', 'non-word characters'],
+  s: ['a whitespace character (space, tab, line break…)', 'whitespace'],
+  S: ['any character that is not whitespace', 'non-whitespace'],
+};
+const CTRL = { n: 'a line break (\\n)', r: 'a carriage return (\\r)', t: 'a tab', v: 'a vertical tab', f: 'a form feed', 0: 'a null character' };
+const PROPS = {
+  L: 'any letter, in any language', Letter: 'any letter, in any language', Lu: 'an uppercase letter', Ll: 'a lowercase letter',
+  N: 'any number character', Nd: 'a decimal digit in any script', P: 'a punctuation mark', S: 'a symbol', Z: 'a separator such as a space',
+  Emoji: 'an emoji', Emoji_Presentation: 'an emoji', Extended_Pictographic: 'a pictographic symbol (emoji and similar)', White_Space: 'whitespace'
+};
+
+function charName(c) {
+  if (c === ' ') return 'a space';
+  if (c === '\t') return 'a tab';
+  if (c === '\n') return 'a line break';
+  return '“' + c + '”';
+}
+
+class RegexSyntaxError extends Error { constructor(msg, pos) { super(msg); this.pos = pos; } }
+
+function parseRegex(src) {
+  let i = 0, groupCount = 0;
+  const fail = (m, p) => { throw new RegexSyntaxError(m, p); };
+  const QRE = /^\{(\d+)(,(\d*))?\}/;
+
+  function parseAlt() {
+    const start = i;
+    const branches = [parseSeq()], pipes = [];
+    while (src[i] === '|') { pipes.push(i); i++; branches.push(parseSeq()); }
+    if (branches.length === 1) return branches[0];
+    return { type: 'alt', start, end: i, branches, pipes };
+  }
+
+  function parseSeq() {
+    const start = i, raw = [];
+    while (i < src.length && src[i] !== '|' && src[i] !== ')') raw.push(parseQuant(parseAtom()));
+    // merge runs of plain characters into one text node
+    const items = [];
+    for (const it of raw) {
+      const prev = items[items.length - 1];
+      if (it.type === 'char' && it.plain) {
+        if (prev && prev.type === 'text') { prev.text += it.ch; prev.end = it.end; prev.parts.push(it); continue; }
+        if (prev && prev.type === 'char' && prev.plain) {
+          items[items.length - 1] = { type: 'text', start: prev.start, end: it.end, text: prev.ch + it.ch, parts: [prev, it] };
+          continue;
+        }
+      }
+      items.push(it);
+    }
+    return { type: 'seq', start, end: i, items };
+  }
+
+  function parseQuant(atom) {
+    const qs = i, c = src[i];
+    let min, max;
+    if (c === '*') { min = 0; max = Infinity; i++; }
+    else if (c === '+') { min = 1; max = Infinity; i++; }
+    else if (c === '?') { min = 0; max = 1; i++; }
+    else if (c === '{') {
+      const m = QRE.exec(src.slice(i));
+      if (!m) return atom;
+      min = +m[1]; max = m[2] ? (m[3] === '' ? Infinity : +m[3]) : min;
+      if (max < min) fail('The numbers in {' + m[1] + ',' + m[3] + '} are the wrong way round', i);
+      i += m[0].length;
+    } else return atom;
+    if (atom.type === 'anchor') fail('A position like ' + src.slice(atom.start, atom.end) + ' can’t be repeated', qs);
+    let lazy = false;
+    if (src[i] === '?') { lazy = true; i++; }
+    return { type: 'quant', start: atom.start, end: i, qStart: qs, min, max, lazy, target: atom };
+  }
+
+  function parseAtom() {
+    const c = src[i], s = i;
+    if (c === '(') return parseGroup();
+    if (c === '[') return parseClass();
+    if (c === '\\') return parseEscape(false);
+    if (c === '.') { i++; return { type: 'dot', start: s, end: i }; }
+    if (c === '^' || c === '$') { i++; return { type: 'anchor', which: c, start: s, end: i }; }
+    if ('*+?'.includes(c)) fail('Nothing to repeat: “' + c + '” needs something in front of it', s);
+    if (c === '{' && QRE.test(src.slice(i))) fail('Nothing to repeat: “{…}” needs something in front of it', s);
+    const cp = src.codePointAt(i), ch = String.fromCodePoint(cp);
+    i += ch.length;
+    return { type: 'char', start: s, end: i, ch, plain: true };
+  }
+
+  function parseGroup() {
+    const s = i; i++;
+    const g = { type: 'group', start: s };
+    if (src[i] === '?') {
+      const r = src.slice(i);
+      let m;
+      if (r.startsWith('?:')) { g.kind = 'noncap'; i += 2; }
+      else if (r.startsWith('?=')) { g.kind = 'ahead'; i += 2; }
+      else if (r.startsWith('?!')) { g.kind = 'nahead'; i += 2; }
+      else if (r.startsWith('?<=')) { g.kind = 'behind'; i += 3; }
+      else if (r.startsWith('?<!')) { g.kind = 'nbehind'; i += 3; }
+      else if ((m = /^\?<([A-Za-z_$][\w$]*)>/.exec(r))) { g.kind = 'named'; g.name = m[1]; g.num = ++groupCount; i += m[0].length; }
+      else if ((m = /^\?([ims]*)(?:-([ims]+))?:/.exec(r)) && (m[1] || m[2])) { g.kind = 'mod'; g.on = m[1] || ''; g.off = m[2] || ''; i += m[0].length; }
+      else fail('Unknown group type after “(?”', s);
+    } else { g.kind = 'cap'; g.num = ++groupCount; }
+    g.openEnd = i;
+    g.body = parseAlt();
+    if (src[i] !== ')') fail('This group is never closed. Add a “)”', s);
+    g.closeStart = i; i++; g.end = i;
+    return g;
+  }
+
+  function parseClass() {
+    const s = i; i++;
+    let neg = false;
+    if (src[i] === '^') { neg = true; i++; }
+    const items = [];
+    while (i < src.length && src[i] !== ']') {
+      const a = classAtom();
+      if (src[i] === '-' && i + 1 < src.length && src[i + 1] !== ']') {
+        const dash = i; i++;
+        const b = classAtom();
+        if (a.single && b.single) {
+          if (a.cp > b.cp) fail('Range out of order: ' + src.slice(a.start, b.end), a.start);
+          items.push({ range: true, from: a, to: b });
+        } else { items.push(a, { single: true, ch: '-', desc: 'a hyphen “-”' }, b); }
+        void dash;
+        continue;
+      }
+      items.push(a);
+    }
+    if (src[i] !== ']') fail('This character set is never closed. Add a “]”', s);
+    i++;
+    return { type: 'class', start: s, end: i, neg, items };
+  }
+
+  function classAtom() {
+    const s = i;
+    if (src[i] === '\\') {
+      const e = parseEscape(true);
+      if (e.type === 'esc') return { single: false, desc: e.short || e.noun, start: s };
+      return { single: true, desc: e.ch && e.plain ? charName(e.ch) : e.noun, cp: e.cp, ch: e.ch, start: s, end: i };
+    }
+    const cp = src.codePointAt(i), ch = String.fromCodePoint(cp);
+    i += ch.length;
+    return { single: true, desc: ch === '-' ? 'a hyphen “-”' : charName(ch), cp, ch, start: s, end: i };
+  }
+
+  function parseEscape(inClass) {
+    const s = i; i++;
+    const c = src[i];
+    if (c === undefined) fail('The pattern ends with a lone backslash', s);
+    i++;
+    const node = (o) => Object.assign({ start: s, end: i }, o);
+    if (ESC[c]) return node({ type: 'esc', noun: ESC[c][0], short: ESC[c][1] });
+    if (!inClass && (c === 'b' || c === 'B')) return node({ type: 'anchor', which: '\\' + c });
+    if (inClass && c === 'b') return node({ type: 'char', noun: 'a backspace character', cp: 8 });
+    if (CTRL[c] && !(c === '0' && /\d/.test(src[i] || ''))) {
+      const cps = { n: 10, r: 13, t: 9, v: 11, f: 12, 0: 0 };
+      return node({ type: 'char', noun: CTRL[c], cp: cps[c], ch: String.fromCharCode(cps[c]) });
+    }
+    if (c === 'c' && /[a-z]/i.test(src[i] || '')) { const l = src[i++].toUpperCase(); return node({ type: 'char', noun: 'the control character Ctrl+' + l, cp: l.charCodeAt(0) % 32, end: i }); }
+    if (c === 'x' && /^[0-9a-f]{2}$/i.test(src.substr(i, 2))) {
+      const h = src.substr(i, 2); i += 2; const cp = parseInt(h, 16);
+      return node({ type: 'char', noun: 'the character with code ' + h.toUpperCase() + ' (' + charName(String.fromCodePoint(cp)) + ')', cp, end: i });
+    }
+    if (c === 'u') {
+      let m, h = null;
+      if ((m = /^\{([0-9a-f]{1,6})\}/i.exec(src.slice(i)))) { h = m[1]; i += m[0].length; }
+      else if (/^[0-9a-f]{4}$/i.test(src.substr(i, 4))) { h = src.substr(i, 4); i += 4; }
+      if (h) { const cp = parseInt(h, 16); return node({ type: 'char', noun: 'the character U+' + h.toUpperCase() + ' (' + charName(String.fromCodePoint(cp)) + ')', cp, end: i }); }
+    }
+    if ((c === 'p' || c === 'P') && src[i] === '{') {
+      const close = src.indexOf('}', i);
+      if (close > 0) {
+        const prop = src.slice(i + 1, close); i = close + 1;
+        const sc = /^(?:Script|sc|Script_Extensions|scx)=(.+)$/.exec(prop);
+        let what = sc ? 'a character in the ' + sc[1] + ' script' : (PROPS[prop] || 'a character with the Unicode property “' + prop + '”');
+        if (c === 'P') what = 'a character that is not ' + what.replace(/^(a|an|any) /, '');
+        return node({ type: 'esc', noun: what + ' (needs the u flag)', short: what, end: i });
+      }
+    }
+    if (!inClass && c === 'k' && src[i] === '<') {
+      const close = src.indexOf('>', i);
+      if (close > 0) { const name = src.slice(i + 1, close); i = close + 1; return node({ type: 'backref', name, end: i }); }
+    }
+    if (!inClass && /[1-9]/.test(c)) {
+      let num = c;
+      while (/\d/.test(src[i] || '')) num += src[i++];
+      return node({ type: 'backref', num: +num, end: i });
+    }
+    // identity escape: the character itself, taken literally
+    const cp = src.codePointAt(i - 1), ch = String.fromCodePoint(cp);
+    i = s + 1 + ch.length;
+    return { type: 'char', start: s, end: i, ch, cp, plain: true, escaped: true };
+  }
+
+  const ast = parseAlt();
+  if (i < src.length) fail('There’s a “)” with no matching “(”', i);
+  return { ast, groupCount };
+}
+
+/* ===================== Descriptions ===================== */
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function listJoin(a) { return a.length <= 1 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1]; }
+
+function rangeDesc(r) {
+  const a = r.from.ch, b = r.to.ch;
+  if (a === 'a' && b === 'z') return 'lowercase a–z';
+  if (a === 'A' && b === 'Z') return 'uppercase A–Z';
+  if (a === '0' && b === '9') return 'digits 0–9';
+  if (a && b && /^[a-z0-9]$/i.test(a) && /^[a-z0-9]$/i.test(b)) return a + '–' + b;
+  return r.from.desc + ' through ' + r.to.desc;
+}
+
+function quantText(q) {
+  const { min, max, lazy } = q;
+  if (min === 0 && max === 1) return lazy ? 'Optional, but skipped if possible (lazy)' : 'Optional: zero or one time';
+  let t;
+  if (min === 0 && max === Infinity) t = 'Zero or more times';
+  else if (min === 1 && max === Infinity) t = 'One or more times';
+  else if (min === max) t = 'Exactly ' + min + ' time' + (min === 1 ? '' : 's');
+  else if (max === Infinity) t = min + ' or more times';
+  else t = 'Between ' + min + ' and ' + max + ' times';
+  if (min !== max) t += lazy ? ', as few as possible (lazy)' : ', as many as possible';
+  return t;
+}
+
+function buildRows(src, ast, flags) {
+  const fi = flags.includes('i');
+  function rows(n) {
+    switch (n.type) {
+      case 'seq': return n.items.flatMap(rows);
+      case 'alt': return [{ s: n.start, e: n.end, kind: 'alt', token: '|', label: 'Either', text: 'Matches any one of these ' + n.branches.length + ' options, trying them left to right', children: options(n) }];
+      case 'quant': {
+        const r = rows(n.target)[0];
+        r.s = n.start; r.e = n.end;
+        r.quant = { s: n.qStart, e: n.end, token: src.slice(n.qStart, n.end), text: quantText(n) };
+        return [r];
+      }
+      case 'text': return [{ s: n.start, e: n.end, kind: n.parts.some(p => p.escaped) ? 'literal' : 'literal', label: 'Text', text: 'The exact text “' + n.text + '”' + (fi ? ', in any letter case' : '') + (n.parts.some(p => p.escaped) ? '. Backslashes make special characters literal' : '') }];
+      case 'char':
+        if (n.plain) return [{ s: n.start, e: n.end, kind: n.escaped ? 'escape' : 'literal', label: n.escaped ? 'Escaped' : 'Text',
+          text: 'The character ' + charName(n.ch) + (n.escaped && /[.*+?^${}()|[\]\\/-]/.test(n.ch) ? ', taken literally rather than as regex syntax' : '') + (fi && /[a-z]/i.test(n.ch) ? ', either case' : '') }];
+        return [{ s: n.start, e: n.end, kind: 'escape', label: 'Character', text: cap(n.noun) }];
+      case 'esc': return [{ s: n.start, e: n.end, kind: 'escape', label: 'Shorthand', text: cap(n.noun) }];
+      case 'dot': return [{ s: n.start, e: n.end, kind: 'class', label: 'Any', text: flags.includes('s') ? 'Any single character, including line breaks (s flag)' : 'Any single character except a line break' }];
+      case 'anchor': {
+        const t = {
+          '^': flags.includes('m') ? 'The start of a line (m flag)' : 'The start of the text',
+          '$': flags.includes('m') ? 'The end of a line (m flag)' : 'The end of the text',
+          '\\b': 'A word boundary: the edge between a word character and anything else',
+          '\\B': 'A spot that is not a word boundary',
+        }[n.which];
+        return [{ s: n.start, e: n.end, kind: 'anchor', label: 'Position', text: t + '. Matches a position, not a character' }];
+      }
+      case 'backref':
+        return [{ s: n.start, e: n.end, kind: 'escape', label: 'Back-reference', text: n.name ? 'The same text that the group “' + n.name + '” captured earlier' : 'The same text that capture group ' + n.num + ' matched earlier' }];
+      case 'class': {
+        const parts = n.items.map(it => it.range ? rangeDesc(it) : it.desc);
+        let text;
+        if (!parts.length) text = n.neg ? 'Any character at all, including line breaks' : 'Nothing. An empty set never matches';
+        else if (n.neg) text = 'One character that is NOT ' + listJoin(parts);
+        else if (parts.length === 1) text = 'One character: ' + parts[0];
+        else text = 'One character from: ' + listJoin(parts);
+        if (fi && parts.length) text += ' (any case)';
+        return [{ s: n.start, e: n.end, kind: 'class', label: n.neg ? 'Not in set' : 'Set', text }];
+      }
+      case 'group': {
+        const map = {
+          cap: ['Group ' + n.num, 'Capture group ' + n.num + ': matches the parts inside and saves the result as $' + n.num],
+          named: ['Group “' + n.name + '”', 'Named capture group: matches the parts inside and saves the result as “' + n.name + '” (also group ' + n.num + ')'],
+          noncap: ['Group', 'Bundles the parts inside together without saving the result'],
+          ahead: ['Lookahead', 'Checks that the text right after this point matches the parts inside, without using it up'],
+          nahead: ['Not followed by', 'Checks that the text right after this point does NOT match the parts inside'],
+          behind: ['Lookbehind', 'Checks that the text right before this point matches the parts inside, without using it up'],
+          nbehind: ['Not preceded by', 'Checks that the text right before this point does NOT match the parts inside'],
+          mod: ['Flag group', 'Matches the parts inside with flags changed: ' + [n.on && 'turns on ' + n.on.split('').join(', '), n.off && 'turns off ' + n.off.split('').join(', ')].filter(Boolean).join('; ')],
+        }[n.kind];
+        const token = src.slice(n.start, n.openEnd) + ' … ' + src.slice(n.closeStart, n.end);
+        let children, text = map[1];
+        if (n.body.type === 'alt') { children = options(n.body); text += '. It matches one of ' + n.body.branches.length + ' options'; }
+        else children = rows(n.body);
+        if (!children.length) text += '. It’s empty, so it matches an empty string';
+        return [{ s: n.start, e: n.end, kind: 'group', label: map[0], token, text, children }];
+      }
+    }
+    return [];
+  }
+  function options(alt) {
+    return alt.branches.map((b, k) => {
+      const ch = rows(b);
+      return { s: b.start, e: b.end, kind: 'alt', token: 'or', label: 'Option ' + (k + 1), text: ch.length ? '' : 'Nothing (an empty option, so this always succeeds)', children: ch, isOption: true, optToken: src.slice(b.start, b.end) || '∅' };
+    });
+  }
+  return rows(ast);
+}
+
+function colorize(src, ast) {
+  const k = new Array(src.length).fill('literal');
+  const set = (s, e, v) => { for (let x = s; x < e; x++) k[x] = v; };
+  (function walk(n) {
+    switch (n.type) {
+      case 'alt': n.branches.forEach(walk); n.pipes.forEach(p => { k[p] = 'alt'; }); break;
+      case 'seq': n.items.forEach(walk); break;
+      case 'text': n.parts.forEach(walk); break;
+      case 'char': set(n.start, n.end, n.plain && !n.escaped ? 'literal' : 'escape'); break;
+      case 'esc': case 'backref': set(n.start, n.end, 'escape'); break;
+      case 'dot': case 'class': set(n.start, n.end, 'class'); break;
+      case 'anchor': set(n.start, n.end, 'anchor'); break;
+      case 'group': set(n.start, n.openEnd, 'group'); set(n.closeStart, n.end, 'group'); walk(n.body); break;
+      case 'quant': walk(n.target); set(n.qStart, n.end, 'quant'); break;
+    }
+  })(ast);
+  return k;
+}
+
+function summarize(ast, groupCount, flags) {
+  const items = ast.type === 'seq' ? ast.items : [];
+  const first = items[0], last = items[items.length - 1];
+  const starts = first && first.type === 'anchor' && first.which === '^';
+  const ends = last && last.type === 'anchor' && last.which === '$';
+  const unit = flags.includes('m') ? 'line' : 'text';
+  let s;
+  if (starts && ends) s = flags.includes('m') ? 'Checks each whole line: the line must match from start to end.' : 'Validates the whole text: it must match from start to end, with nothing extra.';
+  else if (starts) s = 'Only matches at the start of the ' + unit + '.';
+  else if (ends) s = 'Only matches at the end of the ' + unit + '.';
+  else s = 'Finds matches anywhere in the text.';
+  if (groupCount) s += ' Saves ' + groupCount + ' captured part' + (groupCount > 1 ? 's' : '') + ' you can reuse.';
+  return s;
+}
+
+const FLAG_INFO = {
+  g: ['global', 'Find every match, not just the first. Needed for replace-all and matchAll.'],
+  i: ['ignore case', 'Upper and lower case letters match each other.'],
+  m: ['multiline', '^ and $ match at the start and end of each line, not just the whole text.'],
+  s: ['dot-all', 'The dot (.) also matches line breaks.'],
+  u: ['unicode', 'Treats the pattern as Unicode code points and enables \\p{…} property escapes.'],
+  y: ['sticky', 'Only matches starting exactly at lastIndex (the end of the previous match).'],
+};
+
+/* ===================== Library ===================== */
+const R = String.raw;
+const LIBRARY = [
+  { c: 'Contact', n: 'Email address', d: 'Everyday email addresses found in text', kw: 'email e-mail mail address contact inbox', p: R`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`, f: 'gi',
+    t: 'Write to ana.lopez+news@example.co.uk or support@my-site.io.\nNot matched: @handle, name@, plain text.' },
+  { c: 'Contact', n: 'UK mobile number', d: '07… or +44 7… with optional spaces', kw: 'phone mobile cell telephone number uk british gb call', p: R`(?:\+44\s?|0)7\d{3}\s?\d{3}\s?\d{3}`, f: 'g',
+    t: 'Call 07700 900123 or +44 7700 900456, or text 07700900789.\nLandline 01772 123456 is not a mobile.' },
+  { c: 'Contact', n: 'International phone (E.164)', d: 'Plus sign, country code, up to 15 digits', kw: 'phone international telephone number e164 country code global', p: R`\+[1-9]\d{7,14}\b`, f: 'g',
+    t: 'US +14155550123, UK +447700900123, France +33612345678.\nInvalid: +0123456789, 4155550123' },
+  { c: 'Contact', n: 'UK postcode', d: 'Formats like PR3 3XX, SW1A 1AA, M1 1AE', kw: 'postcode post code uk british address zip postal england', p: R`\b[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}\b`, f: 'gi',
+    t: 'Offices: SW1A 1AA, M1 1AE, B33 8TH and pr3 3xx.\nNot postcodes: 12345, ABC DEF' },
+  { c: 'Contact', n: 'US ZIP code', d: '5 digits, optional +4 extension', kw: 'zip zipcode postal code us usa american address', p: R`\b\d{5}(?:-\d{4})?\b`, f: 'g',
+    t: 'Beverly Hills 90210, Seattle 98101-1234.\nToo short: 1234. Too long: 123456' },
+
+  { c: 'Web', n: 'Web link (URL)', d: 'http:// or https:// addresses', kw: 'url link web address website http https href', p: R`https?:\/\/[\w-]+(?:\.[\w-]+)+(?::\d+)?(?:\/[^\s]*)?`, f: 'gi',
+    t: 'See https://example.com/docs?page=2 and http://localhost.dev:8080/api\nNot links: ftp://files.example.com, www.example.com' },
+  { c: 'Web', n: 'Domain name', d: 'example.com, sub.domain.co.uk', kw: 'domain hostname host website site dns tld', p: R`\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b`, f: 'gi',
+    t: 'Visit example.com, blog.my-site.co.uk or news.bbc.co.uk.\nNot a domain: localhost, -bad-.com' },
+  { c: 'Web', n: 'IPv4 address', d: 'Four numbers 0–255 separated by dots', kw: 'ip address ipv4 network server host internet', p: R`\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b`, f: 'g',
+    t: 'Router 192.168.1.1, DNS 8.8.8.8, broadcast 255.255.255.255\nInvalid: 256.1.1.1, 10.0.0' },
+  { c: 'Web', n: 'Hex colour', d: '#fff or #1a2b3c', kw: 'hex color colour css html code rgb', p: R`#(?:[0-9a-f]{3}){1,2}\b`, f: 'gi',
+    t: 'color: #fff; background: #1A2B3C; border: #0af;\nInvalid: #12345, #ggg' },
+  { c: 'Web', n: 'HTML tag', d: 'Opening and closing tags; captures the tag name', kw: 'html tag element markup xml angle brackets', p: R`<\/?([a-z][a-z0-9]*)\b[^>]*>`, f: 'gi',
+    t: '<p class="intro">Hello <strong>world</strong><br/></p>\n2 < 3 is not a tag.' },
+  { c: 'Web', n: 'YouTube video ID', d: 'Captures the 11-character ID from a link', kw: 'youtube video id link url watch youtu.be', p: R`(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})`, f: 'g',
+    t: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ\nhttps://youtu.be/9bZkp7q19f0?t=30' },
+  { c: 'Web', n: 'Hashtag', d: '#word not inside another word', kw: 'hashtag tag social twitter instagram', p: R`(?<!\w)#[a-z]\w*`, f: 'gi',
+    t: 'Loving #Lancashire and #WeekendVibes today!\nNot a hashtag: page#section, #123' },
+  { c: 'Web', n: '@mention', d: '@username up to 15 characters', kw: 'mention username handle at social twitter', p: R`(?<![\w@])@\w{1,15}\b`, f: 'g',
+    t: 'Thanks @sam_dev and @Claude for the help.\nNot a mention: me@example.com' },
+
+  { c: 'Dates & times', n: 'ISO date (YYYY-MM-DD)', d: 'Captures year, month and day by name', kw: 'date iso yyyy-mm-dd year month day calendar', p: R`(?<year>\d{4})-(?<month>0[1-9]|1[0-2])-(?<day>0[1-9]|[12]\d|3[01])`, f: 'g',
+    t: 'Released 2026-10-24, patched 2026-11-03.\nInvalid: 2026-13-01, 2026-02-32, 26-10-24' },
+  { c: 'Dates & times', n: 'UK date (DD/MM/YYYY)', d: 'Day first, slashes between', kw: 'date uk british dd/mm/yyyy day month year calendar european', p: R`\b(0[1-9]|[12]\d|3[01])\/(0[1-9]|1[0-2])\/(\d{4})\b`, f: 'g',
+    t: 'Due 24/10/2026, paid 01/11/2026.\nInvalid: 32/01/2026, 10/24/2026' },
+  { c: 'Dates & times', n: '24-hour time', d: 'HH:MM with optional :SS', kw: 'time clock 24 hour hh:mm hours minutes seconds', p: R`\b([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b`, f: 'g',
+    t: 'Doors 18:30, last orders 23:45:00, open 09:00.\nInvalid: 24:00, 9:5, 12:60' },
+  { c: 'Dates & times', n: '12-hour time', d: '9:30am, 12:05 PM', kw: 'time clock 12 hour am pm', p: R`\b(1[0-2]|0?[1-9]):[0-5]\d\s?(?:am|pm)\b`, f: 'gi',
+    t: 'Meet at 9:30am or 12:05 PM, back by 07:15pm.\nInvalid: 13:00pm, 9:30' },
+  { c: 'Dates & times', n: 'Month name', d: 'Full or short month names', kw: 'month name january february calendar date text', p: R`\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b`, f: 'gi',
+    t: 'From 3 March to 14 Sept, then again in December and Jan.\nNot months: Marching, Junebug' },
+
+  { c: 'Numbers', n: 'Whole number', d: 'Integers, optionally negative', kw: 'number integer whole digits count numeric', p: R`(?<![\d.])-?\d+(?![\d.])`, f: 'g',
+    t: 'Scores: 42, -7 and 1000 points. Skips decimals like 3.14' },
+  { c: 'Numbers', n: 'Decimal number', d: 'Like 3.14, -0.5 or 12', kw: 'number decimal float point fraction numeric', p: R`-?\d+(?:\.\d+)?`, f: 'g',
+    t: 'pi ≈ 3.14159, offset -0.5, count 12' },
+  { c: 'Numbers', n: 'Price in pounds', d: '£1,299.99 with thousands commas', kw: 'price money currency pounds gbp sterling cost £', p: R`£\d{1,3}(?:,\d{3})*(?:\.\d{2})?`, f: 'g',
+    t: 'Was £1,299.99, now £999 — postage £4.50.\nNot prices: 1299, £.50' },
+  { c: 'Numbers', n: 'Percentage', d: '45%, 12.5%, -3%', kw: 'percent percentage rate %', p: R`-?\d+(?:\.\d+)?%`, f: 'g',
+    t: 'Up 12.5% this year, down -3% last month, 100% done.' },
+  { c: 'Numbers', n: 'Version number', d: 'Semantic version like v2.10.3-beta.1', kw: 'version semver release software number', p: R`\bv?(\d+)\.(\d+)\.(\d+)(?:-([0-9a-z.-]+))?\b`, f: 'gi',
+    t: 'Upgrade from v1.4.2 to 2.10.3-beta.1 (not 2.10).' },
+
+  { c: 'Text cleanup', n: 'Repeated word', d: 'The same word twice in a row', kw: 'duplicate repeated double word typo proofread', p: R`\b(\w+)\s+\1\b`, f: 'gi',
+    t: 'This is is a test of the the checker. That that is fine.' },
+  { c: 'Text cleanup', n: 'Extra spaces', d: 'Two or more spaces in a row', kw: 'spaces double whitespace extra cleanup', p: R` {2,}`, f: 'g',
+    t: 'Too   many spaces  here. One space is fine.' },
+  { c: 'Text cleanup', n: 'Leading or trailing spaces', d: 'Spaces or tabs at line ends', kw: 'trim whitespace leading trailing spaces tabs start end line', p: R`^[ \t]+|[ \t]+$`, f: 'gm',
+    t: '   indented line\ntrailing spaces   \n\tstarts with a tab' },
+  { c: 'Text cleanup', n: 'Blank line', d: 'Empty lines, including ones with only spaces', kw: 'blank empty line newline remove', p: R`^[ \t]*\r?\n`, f: 'gm',
+    t: 'First paragraph\n\nSecond paragraph\n   \nThird' },
+  { c: 'Text cleanup', n: 'Quoted text', d: 'Text in double quotes, allowing \\" inside', kw: 'quote quoted string double quotes speech', p: R`"(?:[^"\\]|\\.)*"`, f: 'g',
+    t: 'She said "hello" and then "she said \\"hi\\" back".' },
+  { c: 'Text cleanup', n: 'Capitalised word', d: 'Words starting with a capital letter', kw: 'capital capitalized capitalised uppercase name proper noun', p: R`\b[A-Z][a-z]+\b`, f: 'g',
+    t: 'Lewis drove from Preston to Lancaster on Saturday.' },
+  { c: 'Text cleanup', n: 'Repeated punctuation', d: '!!, ??? or ...', kw: 'punctuation repeated exclamation question ellipsis', p: R`([!?.])\1+`, f: 'g',
+    t: 'Wait... what?? No way!!! Fine.' },
+
+  { c: 'Validation', n: 'Strong password', d: '8+ chars with lower, upper, digit and symbol', kw: 'password strong secure validate check rules', p: R`^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$`, f: 'gm',
+    t: 'Tr0ub4dor&3\npassword123\nCorrect-Horse-9\nShort1!' },
+  { c: 'Validation', n: 'Username', d: '3–16 letters, digits, _ or -', kw: 'username user name handle login validate account', p: R`^[a-z0-9_-]{3,16}$`, f: 'gim',
+    t: 'lewis_w\nab\nthis-name-is-far-too-long\nCool_Dev-42' },
+  { c: 'Validation', n: 'URL slug', d: 'lowercase-words-with-hyphens', kw: 'slug url permalink kebab case hyphen', p: R`^[a-z0-9]+(?:-[a-z0-9]+)*$`, f: 'gm',
+    t: 'my-first-post\nHello-World\ntrailing-\nregex-explainer-2026' },
+  { c: 'Validation', n: 'UUID', d: 'Version 1–5 UUIDs', kw: 'uuid guid id identifier unique', p: R`\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b`, f: 'gi',
+    t: 'id: 3f2504e0-4f89-41d3-9a0c-0305e82c3301\nbad: 3f2504e0-4f89-01d3-9a0c-0305e82c3301' },
+  { c: 'Validation', n: 'Image file name', d: 'Ends in .jpg, .jpeg, .png, .gif or .webp', kw: 'image file filename picture photo extension jpg png gif', p: R`^[\w-]+\.(?:jpe?g|png|gif|webp)$`, f: 'gim',
+    t: 'holiday-01.jpg\nlogo.PNG\nnotes.txt\nbanner.webp' },
+
+  { c: 'Code', n: 'TODO comment', d: 'Captures the text after // TODO', kw: 'todo comment code fixme note', p: R`\/\/\s*TODO:?\s*(.*)$`, f: 'gm',
+    t: 'const x = 1; // TODO: rename this\n// todo lowercase is skipped\n//TODO add tests' },
+  { c: 'Code', n: 'Variable declaration', d: 'const, let or var; captures the name', kw: 'variable declaration javascript js const let var code', p: R`\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)`, f: 'g',
+    t: 'const total = 0;\nlet $el = null; var _tmp;\nconsts aren’t matched' },
+  { c: 'Code', n: 'File extension', d: 'Captures the extension at the end of a file name', kw: 'file extension filename type suffix', p: R`\.([a-z0-9]+)$`, f: 'gim',
+    t: 'report.pdf\narchive.tar.gz\nREADME\nscript.JS' },
+];
+
+function searchLibrary(q) {
+  const STOP = new Set('a an the to of in for with and or that this any some match matches matching find finds get me i want something like is are on from text string regex pattern'.split(' '));
+  const words = q.toLowerCase().replace(/[^\w@#£%./-]+/g, ' ').split(/\s+/).filter(w => w && !STOP.has(w)).map(w => w.length > 3 ? w.replace(/s$/, '') : w);
+  if (!words.length) return null;
+  const tok = (s) => s.toLowerCase().split(/[^\w@#£%-]+/).filter(Boolean);
+  return LIBRARY.map((e, idx) => {
+    const name = tok(e.n), kw = tok(e.kw), desc = tok(e.d);
+    let score = 0, hit = 0;
+    for (const w of words) {
+      const m = (arr) => arr.some(t => t === w || (w.length >= 3 && (t.startsWith(w) || (t.length >= 4 && w.startsWith(t)))));
+      let s = 0;
+      if (m(name)) s += 3;
+      if (m(kw)) s += 2;
+      if (m(desc)) s += 1;
+      if (s) hit++;
+      score += s;
+    }
+    return { e, idx, score: score + hit * 2 };
+  }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
+}
+</script>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const escH = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const STORE = 'regex-explainer:v1';
+const state = { pattern: '', flags: 'g', sample: '', active: null };
+
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && typeof s.pattern === 'string') return s; } catch (e) {}
+  return null;
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify({ pattern: state.pattern, flags: state.flags, sample: state.sample })); } catch (e) {} }
+
+/* ----- flags ----- */
+function renderFlags() {
+  $('#flags').innerHTML = Object.entries(FLAG_INFO).map(([f, [name, info]]) =>
+    `<button type="button" class="flag" id="flag-${f}" data-f="${f}" aria-pressed="${state.flags.includes(f)}" title="${escH(info)}"><b>${f}</b><span>${name}</span></button>`).join('');
+  $('#flagsuffix').textContent = state.flags;
+}
+$('#flags').addEventListener('click', (e) => {
+  const b = e.target.closest('.flag'); if (!b) return;
+  const f = b.dataset.f;
+  state.flags = state.flags.includes(f) ? state.flags.replace(f, '') : 'gimsuy'.split('').filter(x => x === f || state.flags.includes(x)).join('');
+  update();
+});
+
+/* ----- main update ----- */
+function update() {
+  renderFlags();
+  const src = state.pattern;
+  const errBox = $('#error');
+  errBox.hidden = true; errBox.className = '';
+  let parsed = null, nativeErr = null, re = null;
+
+  try { parsed = parseRegex(src); }
+  catch (e) {
+    if (!(e instanceof RegexSyntaxError)) throw e;
+    errBox.hidden = false; errBox.className = 'err';
+    errBox.innerHTML = `<strong>Can’t read this pattern.</strong> ${escH(e.message)}.<pre>${escH(src)}\n<span class="caret">${' '.repeat(Math.max(0, e.pos))}^</span></pre>`;
+  }
+  try { re = new RegExp(src, state.flags.includes('g') ? state.flags : state.flags + 'g'); }
+  catch (e) { nativeErr = e.message; }
+  if (parsed && nativeErr) {
+    errBox.hidden = false; errBox.className = 'err';
+    errBox.innerHTML = `<strong>JavaScript rejects this pattern.</strong> ${escH(nativeErr.replace(/^Invalid regular expression: /, ''))}`;
+    re = null;
+  }
+
+  // colour-coded view
+  const kinds = parsed ? colorize(src, parsed.ast) : null;
+  let html = '';
+  for (let i = 0; i < src.length;) {
+    const ch = String.fromCodePoint(src.codePointAt(i));
+    html += `<span class="pc k-${kinds ? kinds[i] : 'literal'}" data-i="${i}">${escH(ch)}</span>`;
+    i += ch.length;
+  }
+  $('#pview').innerHTML = html || '<span class="empty">Your pattern appears here, colour-coded.</span>';
+
+  // breakdown
+  if (!src) {
+    $('#breakdown').innerHTML = '<p class="empty">Type a pattern above, or pick one from the library.</p>';
+    $('#summary').textContent = '';
+  } else if (parsed) {
+    const rows = buildRows(src, parsed.ast, state.flags);
+    $('#breakdown').innerHTML = rows.length ? `<ol class="tree">${rows.map(rowHTML).join('')}</ol>` : '<p class="empty">An empty pattern matches an empty string at every position.</p>';
+    $('#summary').textContent = summarize(parsed.ast, parsed.groupCount, state.flags);
+  } else {
+    $('#breakdown').innerHTML = '<p class="empty">Fix the error above to see the breakdown.</p>';
+    $('#summary').textContent = '';
+  }
+
+  $('#flagnotes').innerHTML = state.flags
+    ? '<div class="eyebrow" style="display:block">Flags</div>' + state.flags.split('').map(f => `<div><code>${f}</code><span>${escH(FLAG_INFO[f][1])}</span></div>`).join('')
+    : '';
+  $('#flagnotes').hidden = !state.flags;
+
+  groupNames = {}; if (parsed) collectNames(parsed.ast);
+  test(re);
+  markActive();
+  save();
+}
+
+function rowHTML(r) {
+  const tok = r.isOption ? r.optToken : (r.token ?? '');
+  let tokenStr = r.isOption ? `<code class="tok k-alt" title="${escH(tok)}">${escH(tok)}</code>` : `<code class="tok k-${r.kind}" title="${escH(tok)}">${escH(tok)}</code>`;
+  if (!r.isOption && !r.token) {
+    const t = state.pattern.slice(r.s, r.quant ? r.quant.s : r.e);
+    tokenStr = `<code class="tok k-${r.kind}" title="${escH(t)}">${escH(t)}</code>`;
+  }
+  let h = `<li class="node"><div class="line" tabindex="0" data-s="${r.s}" data-e="${r.e}">${tokenStr}<div class="what"><span class="chip">${escH(r.label)}</span>${r.text ? `<span class="desc">${escH(r.text)}</span>` : ''}</div></div>`;
+  if (r.quant) h += `<div class="line q" tabindex="0" data-s="${r.quant.s}" data-e="${r.quant.e}"><code class="tok k-quant">${escH(r.quant.token)}</code><div class="what"><span class="chip">Repeat</span><span class="desc">${escH(r.quant.text)}</span></div></div>`;
+  if (r.children && r.children.length) h += `<ol class="tree">${r.children.map(rowHTML).join('')}</ol>`;
+  return h + '</li>';
+}
+
+/* ----- hover linking ----- */
+function highlight(s, e) {
+  document.querySelectorAll('#pview .pc').forEach(sp => { const i = +sp.dataset.i; sp.classList.toggle('hl', s != null && i >= s && i < e); });
+}
+const bd = $('#breakdown');
+bd.addEventListener('mouseover', (ev) => { const l = ev.target.closest('.line'); if (l) highlight(+l.dataset.s, +l.dataset.e); });
+bd.addEventListener('mouseleave', () => highlight(null));
+bd.addEventListener('focusin', (ev) => { const l = ev.target.closest('.line'); if (l) highlight(+l.dataset.s, +l.dataset.e); });
+bd.addEventListener('focusout', () => highlight(null));
+
+/* ----- tester ----- */
+let groupNames = {};
+function collectNames(n) {
+  if (!n || typeof n !== 'object') return;
+  if (n.type === 'group' && n.kind === 'named') groupNames[n.num] = n.name;
+  for (const v of Object.values(n)) { if (Array.isArray(v)) v.forEach(collectNames); else if (v && typeof v === 'object' && v.type) collectNames(v); }
+}
+function test(re) {
+  const text = state.sample;
+  const out = [], matches = [];
+  let last = 0;
+  if (re && text) {
+    try {
+      for (const m of text.matchAll(re)) {
+        if (matches.length >= 1000) break;
+        out.push(escH(text.slice(last, m.index)));
+        out.push(m[0] === '' ? `<span class="zero" title="Empty match at position ${m.index}"></span>` : `<mark class="m${matches.length % 2}">${escH(m[0])}</mark>`);
+        last = m.index + m[0].length;
+        matches.push(m);
+      }
+    } catch (e) {}
+  }
+  out.push(escH(text.slice(last)));
+  $('#result').innerHTML = text ? out.join('') : '<span class="empty">Add some text above to test against.</span>';
+
+  const n = matches.length;
+  const c = $('#count');
+  c.textContent = re ? (n >= 1000 ? '1000+ matches' : n + (n === 1 ? ' match' : ' matches')) : '—';
+  c.classList.toggle('none', !n);
+
+  const g = $('#gnote');
+  g.hidden = !(re && !state.flags.includes('g') && n > 1);
+  g.textContent = 'All matches are shown here, but without the g flag your code would only use the first one.';
+
+  if (!n) { $('#table').innerHTML = ''; return; }
+  const rows = matches.slice(0, 50).map((m, k) => {
+    const groups = m.slice(1).map((v, j) => {
+      const nm = groupNames[j + 1];
+      return `<span class="g">$${j + 1}${nm ? ' · ' + escH(nm) : ''}: ${v === undefined ? '<em>not matched</em>' : `<code>${escH(v)}</code>`}</span>`;
+    }).join('');
+    return `<tr><td>${k + 1}</td><td><code>${m[0] === '' ? '<em>empty</em>' : escH(m[0])}</code></td><td>${m.index}</td><td>${groups || '<span class="g">—</span>'}</td></tr>`;
+  }).join('');
+  $('#table').innerHTML = `<table><thead><tr><th>#</th><th>Match</th><th>At</th><th>Groups</th></tr></thead><tbody>${rows}</tbody></table>` + (n > 50 ? `<p class="note">Showing the first 50 of ${n}.</p>` : '');
+}
+
+/* ----- library ----- */
+function entryHTML(e, idx) {
+  return `<button type="button" class="entry" data-idx="${idx}"><span class="n">${escH(e.n)}</span><span class="d">${escH(e.d)}</span><code>/${escH(e.p)}/${e.f}</code></button>`;
+}
+let libCat = 'All';
+const CATS = ['All', ...new Set(LIBRARY.map(e => e.c))];
+function renderCats() {
+  $('#cats').innerHTML = CATS.map(c => `<button type="button" class="cat-chip" data-c="${escH(c)}" aria-pressed="${c === libCat}">${escH(c)}</button>`).join('');
+}
+$('#cats').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.cat-chip'); if (!b) return;
+  libCat = b.dataset.c; renderCats(); renderLibrary();
+});
+function renderLibrary() {
+  const q = $('#search').value.trim();
+  const inCat = (e) => libCat === 'All' || e.c === libCat;
+  const all = searchLibrary(q);
+  const res = all && all.filter(r => inCat(r.e));
+  const total = LIBRARY.filter(inCat).length;
+  let html = '';
+  if (!res) {
+    let cat = '';
+    LIBRARY.forEach((e, idx) => { if (!inCat(e)) return; if (e.c !== cat) { cat = e.c; html += `<div class="cat">${escH(cat)}</div>`; } html += entryHTML(e, idx); });
+    $('#libfoot').textContent = total + ' patterns. Search runs in your browser; no AI needed.';
+  } else if (!res.length) {
+    html = `<p class="empty" style="padding:12px 8px">Nothing${libCat === 'All' ? '' : ' in ' + escH(libCat)} for “${escH(q)}”. Try a simpler word like “date”, “phone” or “price”.</p>`;
+    $('#libfoot').textContent = '0 of ' + total + ' patterns';
+  } else {
+    html = res.map(r => entryHTML(r.e, r.idx)).join('');
+    $('#libfoot').textContent = res.length + ' of ' + total + ' patterns';
+  }
+  $('#liblist').innerHTML = html;
+  markActive();
+}
+function markActive() {
+  document.querySelectorAll('.entry').forEach(b => {
+    const e = LIBRARY[+b.dataset.idx];
+    b.classList.toggle('active', e.p === state.pattern && e.f === state.flags);
+  });
+}
+$('#search').addEventListener('input', renderLibrary);
+$('#search').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { const b = $('#liblist .entry'); if (b) b.click(); } });
+$('#liblist').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.entry'); if (!b) return;
+  const e = LIBRARY[+b.dataset.idx];
+  state.pattern = e.p; state.flags = e.f; state.sample = e.t;
+  $('#pattern').value = e.p; $('#sample').value = e.t;
+  update();
+  if (window.matchMedia('(max-width: 900px)').matches) $('.bench').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+/* ----- inputs ----- */
+$('#pattern').addEventListener('input', (ev) => {
+  let v = ev.target.value;
+  const lit = /^\/(.+)\/([dgimsuyv]*)$/s.exec(v);
+  if (lit) { v = lit[1]; state.flags = 'gimsuy'.split('').filter(f => lit[2].includes(f)).join(''); ev.target.value = v; }
+  state.pattern = v; update();
+});
+$('#sample').addEventListener('input', (ev) => { state.sample = ev.target.value; test(currentRe()); save(); });
+function currentRe() { try { return new RegExp(state.pattern, state.flags.includes('g') ? state.flags : state.flags + 'g'); } catch (e) { return null; } }
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+$('#copy').addEventListener('click', async () => {
+  const text = '/' + state.pattern + '/' + state.flags;
+  const lbl = $('#copy-lbl');
+  try { await navigator.clipboard.writeText(text); lbl.textContent = 'Copied'; toast('Copied ' + (text.length > 40 ? text.slice(0, 40) + '…' : text)); }
+  catch (e) { const inp = $('#pattern'); inp.focus(); inp.select(); lbl.textContent = 'Press Ctrl+C'; }
+  setTimeout(() => { lbl.textContent = 'Copy /…/flags'; }, 1600);
+});
+$('#clear').addEventListener('click', () => { state.pattern = ''; $('#pattern').value = ''; update(); $('#pattern').focus(); });
+function focusSearch() { $('#library').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('#search').focus({ preventScroll: true }); $('#search').select(); }
+$('#tofind').addEventListener('click', focusSearch);
+document.addEventListener('keydown', (ev) => {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); focusSearch(); }
+  else if (ev.key === 'Escape' && document.activeElement === $('#search')) { $('#search').value = ''; renderLibrary(); $('#search').blur(); }
+});
+
+/* ----- theme ----- */
+const THEME = 'regex-explainer:theme';
+try { const t = localStorage.getItem(THEME); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+$('#theme').addEventListener('click', () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem(THEME, next); } catch (e) {}
+});
+
+/* ----- boot ----- */
+(function boot() {
+  const saved = load();
+  const start = saved || LIBRARY.find(e => e.n.startsWith('ISO date'));
+  state.pattern = saved ? saved.pattern : start.p;
+  state.flags = saved ? saved.flags : start.f;
+  state.sample = saved ? saved.sample : start.t;
+  $('#pattern').value = state.pattern;
+  $('#sample').value = state.sample;
+  renderCats();
+  renderLibrary();
+  update();
+})();
+</script>
+
+</body>
+</html>
